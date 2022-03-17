@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="5000pt" height="5000pt" viewBox="0 0 5000 5000">
+<title>PyVista Export</title>
+<desc>
+Creator: GL2PS 1.4.2, (C) 1999-2020 C. Geuzaine
+For: VTK
+CreationDate: Thu Mar 17 03:15:49 2022
+</desc>
+<defs>
+</defs>
+<g>
+<image x="0" y="0" width="5000" height="5000"
+transform="matrix(1,0,0,1,0,0)"
+xlink:href="data:image/png;base64,"/>
+</g>
+</svg>
