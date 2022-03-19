@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-from argparse import ArgumentParser 
+import os
+from argparse import ArgumentParser
 from rdkit import Chem
 from rdkit.Chem import MolFromSmiles, GetMolFrags, AddHs, RemoveHs, AllChem
 import pyvista as pv
@@ -7,7 +8,7 @@ import numpy as np
 
 def cli():
     parser = ArgumentParser()
-    parser.add_argument('-i', required=True, help='SMILES string')
+    parser.add_argument('-i', required=True, help='SMILES string or path to SDF file')
     return parser.parse_args().i
 
 def parse_smiles(smiles):
@@ -145,11 +146,17 @@ class Plotter:
             )
 
 def main():
-    smi = cli()
-    mol = parse_smiles(smi)
-    mol = embed_conformer(mol)
+    input = cli()
+    print(input)
+    if not os.path.exists(input):
+        mol = parse_smiles(input)
+        mol = embed_conformer(mol)
+    else:
+        with open(input, 'r') as handle: sdf_string = handle.read()
+        mol = Chem.MolFromMolBlock(sdf_string)
+
     # mol = RemoveHs(mol)
-    plt = Plotter(off_screen=True)
+    plt = Plotter(off_screen=False)
     plt.plot_atoms(mol)
     plt.plot_bonds(mol)
     plt.plot('conformer', transparent_background=False)
