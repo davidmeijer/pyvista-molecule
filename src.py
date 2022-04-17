@@ -165,6 +165,7 @@ def rotation_matrix_x(r: float) -> np.array:
     rot_matrix (np.array): Rotation matrix for rotation around x-axis.
 
     For more information on 4x4 rotation matrices:
+    https://iwatobipen.wordpress.com/author/iwatobipen/ 
     http://www.cs.cmu.edu/afs/cs/academic/class/15462-s10/www/lec-slides/lec04.pdf
     """
     return np.array([
@@ -188,6 +189,7 @@ def rotation_matrix_y(r: float) -> np.array:
     rot_matrix (np.array): Rotation matrix for rotation around y-axis.
 
     For more information on 4x4 rotation matrices:
+    https://iwatobipen.wordpress.com/author/iwatobipen/ 
     http://www.cs.cmu.edu/afs/cs/academic/class/15462-s10/www/lec-slides/lec04.pdf
     """
     return np.array([
@@ -211,6 +213,7 @@ def rotation_matrix_z(r: float) -> np.array:
     rot_matrix (np.array): Rotation matrix for rotation around z-axis.
 
     For more information on 4x4 rotation matrices:
+    https://iwatobipen.wordpress.com/author/iwatobipen/ 
     http://www.cs.cmu.edu/afs/cs/academic/class/15462-s10/www/lec-slides/lec04.pdf
     """
     return np.array([

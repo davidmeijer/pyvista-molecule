@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Author:         David Meijer
-Description:    Draw gif of molecule rotating around x-axis.
+Description:    Draw gif of molecule rotating around x, y, or z-axis.
 Usage:          python3 draw_gif.py -i <input> -o <output_dir>
 """
 import os
@@ -31,6 +31,9 @@ def cli() -> argparse.Namespace:
         help="path to output directory"
     )
     # Optional command line arguments.
+    parser.add_argument("-ax", "--axis", required=False, type=str, 
+        help="rotation axis (x, y, or z)", default="z"
+    )
     parser.add_argument("-f", "--frames", required=False, type=int, 
         help="number of frames", default=30
     )
@@ -65,12 +68,19 @@ def main() -> None:
             sdf_string = handle.read()
         mol = src.parse_molblock(sdf_string)
 
+    # Get rotation axis.
+    rotation_matrix = {
+        "x": src.rotation_matrix_x(2*np.pi/args.frames),
+        "y": src.rotation_matrix_y(2*np.pi/args.frames),
+        "z": src.rotation_matrix_z(2*np.pi/args.frames)
+    }
+
     frames = []
     for _ in range(args.frames):
         mol = deepcopy(mol)
         rdMolTransforms.TransformConformer(
             mol.GetConformer(0), 
-            src.rotation_matrix_x(2*np.pi/args.frames)
+            rotation_matrix[args.axis]
         )
         frames.append(mol)
     
