@@ -89,13 +89,18 @@ def embed_conformer(mol: Chem.Mol) -> Chem.Mol:
     return mol
 
 
-def parse_smiles(smiles: str, remove_hs: bool = True) -> Chem.Mol:
+def parse_smiles(
+    smiles: str, 
+    two_dim: bool = False, 
+    remove_hs: bool = True
+) -> Chem.Mol:
     """
     Parse SMILES string to RDKit molecule with embedded conformer.
     
     Arguments
     ---------
     smiles (str): SMILES string.
+    two_dim (bool): Embed 2D conformer.
     remove_hs (bool): Remove hydrogens from molecule.
 
     Returns
@@ -103,9 +108,15 @@ def parse_smiles(smiles: str, remove_hs: bool = True) -> Chem.Mol:
     mol (rdkit.Chem.Mol): RDKit molecule with embedded conformer.
     """
     mol = smiles_to_mol(smiles)
-    mol = embed_conformer(mol)
+    
+    if two_dim == True:
+        AllChem.Compute2DCoords(mol)
+    else:
+        mol = embed_conformer(mol)
+
     if remove_hs:
         mol = Chem.RemoveHs(mol)
+        
     return mol
 
 
@@ -302,87 +313,97 @@ class Plotter:
 
     def plot_atoms(
         self, 
-        mol: Chem.Mol, 
+        drawer,
         colors: ty.Optional[ty.Dict[int, Color]] = None,
         sizes: ty.Optional[ty.Dict[int, Size]] = None,
         theta_resolution: int = 90,
         phi_resolution: int = 90
     ) -> None:
         """
-        Plot atoms of RDKit molecule.
-        
-        Arguments
-        ---------
-        mol (rdkit.Chem.Mol): RDKit molecule.
-        colors (ty.Dict[int, Color]): Dictionary of atom indices and colors
-            (default: None).
-        sizes (ty.Dict[int, Size]): Dictionary of atom indices and sizes
-            (default: None).
-        theta_resolution (int): Resolution of theta angle (default: 90).
-        phi_resolution (int): Resolution of phi angle (default: 90).
-
-        Note: RDKit molecule atom indices are used as reference.
+        Plot atoms.
         """
-        for atom in mol.GetAtoms():
-            atom_index = atom.GetIdx()
+        # Find the plotting dimensions of the molecule such that the canvas can be scaled to fit the molecule
+        min_x = 100000000
+        max_x = -100000000
+        min_y = 100000000
+        max_y = -100000000
 
-            pos = mol.GetConformer().GetAtomPosition(atom_index)
-            coords = np.array([pos.x, pos.y, pos.z])
-            symb = atom.GetSymbol()
+        for atom in drawer.structure.graph:
+            if atom.draw.positioned:
+                if atom.draw.position.x < min_x:
+                    min_x = atom.draw.position.x
+                if atom.draw.position.y < min_y:
+                    min_y = atom.draw.position.y
+                if atom.draw.position.x > max_x:
+                    max_x = atom.draw.position.x
+                if atom.draw.position.y > max_y:
+                    max_y = atom.draw.position.y
 
-            # Set atom color.
-            if colors is not None:
-                color = colors.get(atom_index, self.get_atom_color(symb))
-            else:
-                color = self.get_atom_color(symb)
+        ring_centers_x = []
+        ring_centers_y = []
 
-            # Set atom size.
-            if sizes is not None:
-                size = sizes.get(atom_index, self.get_atom_size(symb))
-            else:
-                size = self.get_atom_size(symb)
+        for ring in drawer.rings:
+            drawer.set_ring_center(ring)
 
-            # Draw atom.
-            sphere = pv.Sphere(
-                radius=size,
-                center=coords,
-                direction=coords,
-                theta_resolution=theta_resolution,
-                phi_resolution=phi_resolution
-            )
-            self.plt.add_mesh(sphere, color=color)
+            ring_centers_x.append(ring.center.x)
+            ring_centers_y.append(ring.center.y)
+
+        for atom in drawer.structure.graph:
+            if atom.draw.positioned:
+                
+                atom_index = atom.nr
+                symb = atom.type
+                coords = np.array([atom.draw.position.x, atom.draw.position.y, 0.0])
+
+                # Set atom color.
+                if colors is not None:
+                    color = colors.get(atom_index, self.get_atom_color(symb))
+                else:
+                    color = self.get_atom_color(symb)
+
+                # Set atom size.
+                if sizes is not None:
+                    size = sizes.get(atom_index, self.get_atom_size(symb))
+                else:
+                    size = self.get_atom_size(symb)
+
+                # Draw atom.
+                sphere = pv.Sphere(
+                    radius=size,
+                    center=coords,
+                    direction=coords,
+                    theta_resolution=theta_resolution,
+                    phi_resolution=phi_resolution
+                )
+                self.plt.add_mesh(sphere, color=color)
+
 
     def plot_bonds(
         self, 
-        mol: Chem.Mol, 
+        drawer,
+        atom_colors = None,
         colors: ty.Optional[ty.Dict[int, Color]] = None,
         radii: ty.Optional[ty.Dict[int, Size]] = None,
         resolution: int = 100,
         n_sides: int = 100
     ) -> None:
         """
-        Plot bonds of RDKit molecule.
-
-        Arguments
-        ---------
-        mol (rdkit.Chem.Mol): RDKit molecule.
-        colors (ty.Dict[int, Color]): Dictionary of bond indices and colors
-            (default: None).
-        radii (ty.Dict[int, Size]): Dictionary of bond indices and radii
-            (default: None).
-        resolution (int): Resolution of bond cylinders (default: 100).
-        n_sides (int): Number of sides of bond cylinders (default: 100).
+        Plot bonds.
         """
-        for bond in mol.GetBonds():
-            bond_index = bond.GetIdx()
+        for bond_nr, bond in drawer.structure.bonds.items():
 
-            s, e = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
-            s_atom, e_atom = mol.GetAtomWithIdx(s), mol.GetAtomWithIdx(e)
-            s_symb, e_symb = s_atom.GetSymbol(), e_atom.GetSymbol()
-            s_pos = mol.GetConformer().GetAtomPosition(s)
-            e_pos = mol.GetConformer().GetAtomPosition(e)
-            s_center = np.array([s_pos.x, s_pos.y, s_pos.z])
-            e_center = np.array([e_pos.x, e_pos.y, e_pos.z])
+            bond_index = bond_nr
+
+            s, e = bond.atom_1.nr, bond.atom_2.nr
+            s_atom, e_atom = bond.atom_1, bond.atom_2
+            s_symb, e_symb = s_atom.type, e_atom.type
+
+            if s_symb == "H" or e_symb == "H":
+                continue
+
+            s_center = np.array([s_atom.draw.position.x, s_atom.draw.position.y, 0.0])
+            e_center = np.array([e_atom.draw.position.x, e_atom.draw.position.y, 0.0])
+
             s_coords = s_center + self.get_atom_size(s_symb) * (e_center - s_center)
             e_coords = e_center + self.get_atom_size(e_symb) * (s_center - e_center)
             m_coords = centroid([s_coords, e_coords])
@@ -397,6 +418,10 @@ class Plotter:
             else:
                 s_color = self.get_atom_color(s_symb)
                 e_color = self.get_atom_color(e_symb)
+
+            if atom_colors is not None:
+                s_color = atom_colors[s]
+                e_color = atom_colors[e]
 
             # Set bond radius.
             if radii is not None:
@@ -422,7 +447,7 @@ class Plotter:
                 radius=e_radius
             )
             self.plt.add_mesh(tube_e, color=e_color)
-
+            
     def add_axes(
         self, 
         mol: Chem.Mol,
@@ -489,7 +514,7 @@ class Plotter:
 
 
 def draw(
-    mol: Chem.Mol,
+    drawer,
     fpath: ty.Optional[str] = None, 
     window_size: ty.Tuple[int, int] = DEFAULT_WINDOW_SIZE,
     transparent_background: bool = False,
@@ -511,54 +536,33 @@ def draw(
 ) -> None:
     """
     Draw molecule.
-    
-    Arguments
-    ---------
-    mol (rdkit.Chem.Mol): RDKit molecule.
-    fpath (str): Path to save plot to (default: None).
-    window_size (ty.Tuple[int, int]): Size of window (default: (800, 800)).
-    transparent_background (bool): Whether to make background transparent
-    atom_colors (ty.Dict[int, Color]): Atom colors (default: None).
-    atom_sizes (ty.Dict[int, Size]): Atom sizes (default: None).
-    atom_theta_resolution (int): Theta resolution of atoms (default: 90).
-    atom_phi_resolution (int): Phi resolution of atoms (default: 90).
-    bond_colors (ty.Dict[int, Color]): Bond colors (default: None).
-    bond_radii (ty.Dict[int, Size]): Bond radii (default: None).
-    bond_resolution (int): Resolution of bonds (default: 100).
-    bond_n_sides (int): Number of sides of bonds (default: 100).
-    add_axes (bool): Whether to add axes to plot (default: False).
-    opacity_x_axis (float): Opacity of x axis (default: 1.0).
-    opacity_y_axis (float): Opacity of y axis (default: 1.0).
-    opacity_z_axis (float): Opacity of z axis (default: 1.0).
-    color_x_axis (Color): Color of x axis (default: red).
-    color_y_axis (Color): Color of y axis (default: green).
-    color_z_axis (Color): Color of z axis (default: blue).
     """
     plt = Plotter(off_screen=True)
     plt.plot_atoms(
-        mol,
+        drawer,
         colors=atom_colors,
         sizes=atom_sizes,
         theta_resolution=atom_theta_resolution,
         phi_resolution=atom_phi_resolution
     )
     plt.plot_bonds(
-        mol,
+        drawer,
+        atom_colors=atom_colors,
         colors=bond_colors,
         radii=bond_radii,
         resolution=bond_resolution,
         n_sides=bond_n_sides
     )
-    if add_axes:
-        plt.add_axes(
-            mol,
-            opacity_x_axis=opacity_x_axis,
-            opacity_y_axis=opacity_y_axis,
-            opacity_z_axis=opacity_z_axis,
-            color_x_axis=color_x_axis,
-            color_y_axis=color_y_axis,
-            color_z_axis=color_z_axis
-        )
+    # if add_axes:
+    #     plt.add_axes(
+    #         mol,
+    #         opacity_x_axis=opacity_x_axis,
+    #         opacity_y_axis=opacity_y_axis,
+    #         opacity_z_axis=opacity_z_axis,
+    #         color_x_axis=color_x_axis,
+    #         color_y_axis=color_y_axis,
+    #         color_z_axis=color_z_axis
+    #     )
     plt.draw(
         fpath, 
         transparent_background=transparent_background, 
